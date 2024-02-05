@@ -37,10 +37,10 @@ class CollaborationsService {
     }
   }
 
-  async verifyCollaborator(playlistId, userId) {
+  async verifyCollaborator(playlistId, owner) {
     const query = {
       text: 'SELECT * FROM collaborations WHERE playlist_id = $1 AND user_id = $2',
-      values: [userId, playlistId],
+      values: [playlistId, owner],
     };
 
     const result = await this._pool.query(query);

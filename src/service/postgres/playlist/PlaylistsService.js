@@ -53,10 +53,10 @@ class PlaylistsService {
     return result.rows.map(mapPlaylistsDBToModel);
   }
 
-  async getPlaylistById(id) {
+  async getPlaylistById(playlistId) {
     const query = {
       text: `SELECT playlists.*, users.username FROM playlists LEFT JOIN users ON users.id = playlists.owner WHERE playlists.id = $1`,
-      values: [id],
+      values: [playlistId],
     };
 
     const result = await this._pool.query(query);
@@ -66,10 +66,10 @@ class PlaylistsService {
     }
   }
 
-  async deletePlaylist(id) {
+  async deletePlaylist(playlistId) {
     const query = {
       text: 'DELETE FROM playlists WHERE id = $1 RETURNING id',
-      value: [id],
+      values: [playlistId],
     };
 
     const result = await this._pool.query(query);
@@ -79,12 +79,12 @@ class PlaylistsService {
     }
   }
 
-  async addPlaylistActivity({ playlistId, songId, credentialId, action }) {
+  async addPlaylistActivity({ playlistId, songId, owner, action }) {
     const id = `activity-${nanoid(16)}`;
     const time = new Date().toISOString();
     const query = {
       text: 'INSERT INTO playlist_song_activities VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
-      values: [id, playlistId, songId, credentialId, action, time],
+      values: [id, playlistId, songId, owner, action, time],
     };
 
     const result = await this._pool.query(query);
@@ -113,10 +113,10 @@ class PlaylistsService {
     return result.rows;
   }
 
-  async verifyPlaylistOwner(id, owner) {
+  async verifyPlaylistOwner(playlistId, owner) {
     const query = {
       text: 'SELECT * FROM playlists WHERE id = $1',
-      values: [id],
+      values: [playlistId],
     };
 
     const result = await this._pool.query(query);
@@ -132,16 +132,16 @@ class PlaylistsService {
     }
   }
 
-  async verifyPlaylistAccess(playlistId, userId) {
+  async verifyPlaylistAccess(playlistId, owner) {
     try {
-      await this.verifyPlaylistOwner(playlistId, userId);
+      await this.verifyPlaylistOwner(playlistId, owner);
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
       }
 
       try {
-        await this._collaborationsService.verifyCollaborator(playlistId, userId);
+        await this._collaborationsService.verifyCollaborator(playlistId, owner);
       } catch {
         error;
       }

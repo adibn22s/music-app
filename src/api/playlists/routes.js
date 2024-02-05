@@ -17,7 +17,7 @@ const routes = (handler) => [
   },
   {
     method: 'GET',
-    path: '/playlists/{id}/songs',
+    path: '/playlists/{playlistId}/songs',
     handler: (request, h) => handler.getSongByPlaylistHandler(request, h),
     options: {
       auth: 'music_jwt',
@@ -33,7 +33,7 @@ const routes = (handler) => [
   },
   {
     method: 'DELETE',
-    path: '/playlists/{id}',
+    path: '/playlists/{playlistId}',
     handler: (request, h) => handler.deletePlaylistHandler(request, h),
     options: {
       auth: 'music_jwt',
