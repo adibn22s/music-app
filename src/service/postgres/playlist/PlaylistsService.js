@@ -1,6 +1,5 @@
 const { Pool } = require('pg');
 const { nanoid } = require('nanoid');
-const mapPlaylistsDBToModel = require('../../../utils/playlist');
 const InvariantError = require('../../../exceptions/InvariantError');
 const NotFoundError = require('../../../exceptions/NotFoundError');
 const AuthorizationError = require('../../../exceptions/AuthorizationError');
@@ -44,18 +43,20 @@ class PlaylistsService {
 
   async getPlaylists(owner) {
     const query = {
-      text: `SELECT playlists.*, users.username FROM playlists INNER JOIN users ON playlists.owner = users.id 
-        WHERE playlists.owner = $1`,
+      text: `SELECT playlists.id, playlists.name, users.username FROM playlists 
+      INNER JOIN users ON playlists.owner = users.id 
+      LEFT JOIN collaborations ON collaborations.playlist_id = playlists.id
+      WHERE playlists.owner = $1 OR collaborations.user_id = $1`,
       values: [owner],
     };
 
     const result = await this._pool.query(query);
-    return result.rows.map(mapPlaylistsDBToModel);
+    return result.rows;
   }
 
   async getPlaylistById(playlistId) {
     const query = {
-      text: `SELECT playlists.*, users.username FROM playlists LEFT JOIN users ON users.id = playlists.owner WHERE playlists.id = $1`,
+      text: `SELECT playlists.id, playlists.name, users.username FROM playlists  INNER JOIN users ON users.id = playlists.owner WHERE playlists.id = $1`,
       values: [playlistId],
     };
 
@@ -64,6 +65,8 @@ class PlaylistsService {
     if (!result.rows.length) {
       throw new NotFoundError('Playlist tidak ditemukan');
     }
+
+    return result.rows[0];
   }
 
   async deletePlaylist(playlistId) {
@@ -97,7 +100,7 @@ class PlaylistsService {
 
   async getPlaylistActivityById(playlistId) {
     const query = {
-      text: `SELECT users.username, songs.title, playlists_song_activities.action, playlist_song_activities.time FROM playlist_song_activities 
+      text: `SELECT users.username, songs.title, playlist_song_activities.action, playlist_song_activities.time FROM playlist_song_activities 
       RIGHT JOIN users ON users.id = playlist_song_activities.user_id
       RIGHT JOIN songs ON songs.id = playlist_song_activities.song_id
       WHERE playlist_song_activities.playlist_id = $1`,
@@ -107,7 +110,7 @@ class PlaylistsService {
     const result = await this._pool.query(query);
 
     if (!result.rows.length) {
-      throw new NotFoundError('Aktivitas playlist tidak ditemukan');
+      throw new NotFoundError('Aktivitas tidak ditemukan');
     }
 
     return result.rows;
@@ -139,11 +142,10 @@ class PlaylistsService {
       if (error instanceof NotFoundError) {
         throw error;
       }
-
       try {
         await this._collaborationsService.verifyCollaborator(playlistId, owner);
       } catch {
-        error;
+        throw error;
       }
     }
   }
